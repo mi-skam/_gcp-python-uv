@@ -106,8 +106,11 @@ _setup-registry: _validate-env _check-auth
 
 # Deploy to Google Cloud Run (public access)
 deploy: _setup-registry _build-push
+    #!/usr/bin/env bash
+    set -euo pipefail
     echo "🚀 Deploying to Cloud Run..."
     gcloud run deploy {{service_name}} --image {{image_tag}} --platform managed --region {{region}} --allow-unauthenticated --project {{project_id}}
+    echo "Current URL: $(gcloud run services describe {{service_name}} --region={{region}} --project={{project_id}} --format='value(status.url)')"
 
 # Delete Cloud Run service to avoid costs
 kill:
@@ -117,7 +120,6 @@ kill:
     echo "🗑️  Deleting Cloud Run service..."
     if gcloud run services describe {{service_name}} --region={{region}} --project={{project_id}} &>/dev/null; then
         gcloud run services delete {{service_name}} --region {{region}} --project {{project_id}} --quiet
-        echo "✅ Service deleted"
     else
         echo "ℹ️  Service not found (may already be deleted)"
     fi
@@ -139,8 +141,8 @@ status:
     set -euo pipefail
     if gcloud run services describe {{service_name}} --region={{region}} --project={{project_id}} &>/dev/null; then
         echo "✅ Service is deployed"
-        echo "🌐 URL: $(gcloud run services describe {{service_name}} --region={{region}} --format='value(status.url)')"
-        echo "📊 Status: $(gcloud run services describe {{service_name}} --region={{region}} --format='value(status.conditions[0].status)')"
+        echo "🌐 URL: $(gcloud run services describe {{service_name}} --region={{region}} --project={{project_id}} --format='value(status.url)')"
+        echo "📊 Status: $(gcloud run services describe {{service_name}} --region={{region}} --project={{project_id}} --format='value(status.conditions[0].status)')"
     else
         echo "❌ Service not running"
         exit 1
