@@ -7,7 +7,7 @@ set dotenv-load := true
 # Core configuration (from .env or environment)
 project_id := env_var_or_default("GCP_PROJECT_ID", `gcloud config get-value project`)
 region := env_var("GCP_REGION")
-service_name := env_var("SERVICE_NAME")
+GCP_SERVICE_NAME := env_var("GCP_SERVICE_NAME")
 
 # Python configuration (single source of truth: .python-version)
 python_version := `cat .python-version | tr -d '\n'`
@@ -18,9 +18,9 @@ port := env_var("PORT")
 dev_local_port := env_var("DEV_LOCAL_PORT")
 
 # Artifact Registry configuration
-artifact_registry_repo := env_var("ARTIFACT_REGISTRY_REPO")
+GCP_ARTIFACT_REGISTRY_REPO := env_var("GCP_ARTIFACT_REGISTRY_REPO")
 git_hash := `git rev-parse --short HEAD`
-image_tag := region + "-docker.pkg.dev/" + project_id + "/" + artifact_registry_repo + "/" + service_name + ":" + git_hash
+image_tag := region + "-docker.pkg.dev/" + project_id + "/" + GCP_ARTIFACT_REGISTRY_REPO + "/" + GCP_SERVICE_NAME + ":" + git_hash
 
 # ==================== Default Target ====================
 # Show available commands
@@ -42,10 +42,10 @@ dev port=dev_local_port:
 test-prod local_port=dev_local_port:
     #!/usr/bin/env bash
     set -euo pipefail
-    trap 'docker stop $(docker ps -q --filter ancestor={{service_name}}) 2>/dev/null' EXIT
+    trap 'docker stop $(docker ps -q --filter ancestor={{GCP_SERVICE_NAME}}) 2>/dev/null' EXIT
     echo "🚀 Starting production container on http://localhost:{{local_port}}"
     echo "⚠️  Note: Code changes require rebuilding the container"
-    docker run -p {{local_port}}:{{port}} -e PORT={{port}} --rm {{service_name}}
+    docker run -p {{local_port}}:{{port}} -e PORT={{port}} --rm {{GCP_SERVICE_NAME}}
 
 # ==================== Build Commands ====================
 # Build Docker image (defaults to host platform for speed)
@@ -54,10 +54,10 @@ build platform="":
     set -euo pipefail
     if [ -z "{{platform}}" ]; then
         echo "🔨 Building Docker image for host platform..."
-        docker build --build-arg PYTHON_IMAGE={{python_image}} -t {{service_name}} -t {{image_tag}} .
+        docker build --build-arg PYTHON_IMAGE={{python_image}} -t {{GCP_SERVICE_NAME}} -t {{image_tag}} .
     else
         echo "🔨 Building Docker image for platform {{platform}}..."
-        docker build --platform {{platform}} --build-arg PYTHON_IMAGE={{python_image}} -t {{service_name}} -t {{image_tag}} .
+        docker build --platform {{platform}} --build-arg PYTHON_IMAGE={{python_image}} -t {{GCP_SERVICE_NAME}} -t {{image_tag}} .
     fi
 
 # Update dependencies
@@ -72,7 +72,7 @@ update:
 clean:
     #!/usr/bin/env bash
     set -euo pipefail
-    docker image rm {{service_name}} {{image_tag}} 2>/dev/null || true
+    docker image rm {{GCP_SERVICE_NAME}} {{image_tag}} 2>/dev/null || true
     docker image prune -f
     echo "🧹 Docker images cleaned"
 
@@ -82,21 +82,21 @@ deploy: _validate-deployment _build-and-push
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🚀 Deploying to Cloud Run..."
-    gcloud run deploy {{service_name}} \
+    gcloud run deploy {{GCP_SERVICE_NAME}} \
         --image {{image_tag}} \
         --platform managed \
         --region {{region}} \
         --allow-unauthenticated \
         --project {{project_id}}
-    echo "🌐 Service URL: $(gcloud run services describe {{service_name}} --region={{region}} --project={{project_id}} --format='value(status.url)')"
+    echo "🌐 Service URL: $(gcloud run services describe {{GCP_SERVICE_NAME}} --region={{region}} --project={{project_id}} --format='value(status.url)')"
 
 # Delete Cloud Run service
 destroy:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🗑️  Deleting Cloud Run service..."
-    if gcloud run services describe {{service_name}} --region={{region}} --project={{project_id}} &>/dev/null; then
-        gcloud run services delete {{service_name}} --region {{region}} --project {{project_id}} --quiet
+    if gcloud run services describe {{GCP_SERVICE_NAME}} --region={{region}} --project={{project_id}} &>/dev/null; then
+        gcloud run services delete {{GCP_SERVICE_NAME}} --region {{region}} --project {{project_id}} --quiet
         echo "✅ Service deleted"
     else
         echo "ℹ️  Service not found"
@@ -107,10 +107,10 @@ destroy:
 status:
     #!/usr/bin/env bash
     set -euo pipefail
-    if gcloud run services describe {{service_name}} --region={{region}} --project={{project_id}} &>/dev/null; then
+    if gcloud run services describe {{GCP_SERVICE_NAME}} --region={{region}} --project={{project_id}} &>/dev/null; then
         echo "✅ Service is deployed"
-        echo "🌐 URL: $(gcloud run services describe {{service_name}} --region={{region}} --project={{project_id}} --format='value(status.url)')"
-        echo "📊 Ready: $(gcloud run services describe {{service_name}} --region={{region}} --project={{project_id}} --format='value(status.conditions[0].status)')"
+        echo "🌐 URL: $(gcloud run services describe {{GCP_SERVICE_NAME}} --region={{region}} --project={{project_id}} --format='value(status.url)')"
+        echo "📊 Ready: $(gcloud run services describe {{GCP_SERVICE_NAME}} --region={{region}} --project={{project_id}} --format='value(status.conditions[0].status)')"
     else
         echo "❌ Service not deployed"
         exit 1
@@ -119,7 +119,7 @@ status:
 # View service logs
 logs limit="50":
     gcloud logging read \
-        "resource.type=cloud_run_revision AND resource.labels.service_name={{service_name}}" \
+        "resource.type=cloud_run_revision AND resource.labels.GCP_SERVICE_NAME={{GCP_SERVICE_NAME}}" \
         --limit={{limit}} \
         --project={{project_id}} \
         --format=json \
@@ -168,11 +168,11 @@ _setup-registry:
     set -euo pipefail
     
     # Create repository if it doesn't exist
-    if ! gcloud artifacts repositories describe {{artifact_registry_repo}} \
+    if ! gcloud artifacts repositories describe {{GCP_ARTIFACT_REGISTRY_REPO}} \
         --location={{region}} \
         --project={{project_id}} &>/dev/null; then
         echo "📦 Creating Artifact Registry repository..."
-        gcloud artifacts repositories create {{artifact_registry_repo}} \
+        gcloud artifacts repositories create {{GCP_ARTIFACT_REGISTRY_REPO}} \
             --repository-format=docker \
             --location={{region}} \
             --project={{project_id}} \

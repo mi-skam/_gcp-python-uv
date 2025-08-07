@@ -1,5 +1,8 @@
 # gcp-python-uv
 
+[![CI](https://github.com/mi-skam/_gcp-python-uv/actions/workflows/ci.yml/badge.svg)](https://github.com/mi-skam/_gcp-python-uv/actions/workflows/ci.yml)
+[![Release and Deploy](https://github.com/mi-skam/_gcp-python-uv/actions/workflows/release.yml/badge.svg)](https://github.com/mi-skam/_gcp-python-uv/actions/workflows/release.yml)
+
 Flask application template for Google Cloud Run deployment using Docker, uv package management, and just for task automation.
 
 ## Prerequisites
@@ -88,8 +91,8 @@ All configuration is managed through the `.env` file:
 # Google Cloud Configuration
 GCP_PROJECT_ID=your-project-id       # Required (or use gcloud default)
 GCP_REGION=europe-west3              # Required
-ARTIFACT_REGISTRY_REPO=cloud-run-apps # Required
-SERVICE_NAME=gcp-python-uv           # Required
+GCP_ARTIFACT_REGISTRY_REPO=cloud-run-apps # Required
+GCP_SERVICE_NAME=gcp-python-uv           # Required
 
 # Application Configuration
 PORT=8080                            # Required
@@ -205,6 +208,48 @@ The deployment automatically uses `linux/amd64` platform
 https://console.cloud.google.com/run?project=YOUR_PROJECT_ID
 ```
 
+## CI/CD and Automated Deployment
+
+This repository includes GitHub Actions workflows for automated testing and deployment:
+
+### 🚀 Automated Release Workflow
+
+When you push a version tag (`v*`), the system automatically:
+1. Builds and tests the Docker image
+2. Pushes to Google Artifact Registry
+3. Deploys to Cloud Run with the version tag
+4. Creates a GitHub release with deployment info
+
+```bash
+# Create and push a new release
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+### 🧪 Continuous Integration
+
+Pull requests and main branch pushes trigger:
+- Multi-version Python testing (3.9, 3.11, 3.12)
+- Docker build verification
+- Flask application health checks
+
+### 📋 CI/CD Setup
+
+To enable automated deployments, see [`.github/SETUP.md`](./.github/SETUP.md) for:
+- Google Cloud service account creation
+- GitHub repository secrets configuration
+- Artifact Registry setup
+- Monitoring and cost management
+
+### 🏷️ Release Management
+
+The system supports semantic versioning:
+- `v1.0.0` - Major releases
+- `v1.1.0` - Minor features
+- `v1.1.1` - Patches and fixes
+
+Each release creates a permanent deployment with version tracking.
+
 ## License
 
 MIT
@@ -213,4 +258,5 @@ MIT
 
 For issues or questions:
 - Review troubleshooting section above
+- Check [CI/CD Setup Guide](./.github/SETUP.md) for deployment issues
 - Open an issue on GitHub
