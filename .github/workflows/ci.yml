@@ -57,7 +57,7 @@ jobs:
 
       - name: Test Docker container
         run: |
-          docker run -d -p 8080:8080 --name test-container test-image
+          docker run -d -p 8080:8080 -e PORT=8080 --name test-container test-image
           sleep 5
           curl -f http://localhost:8080/health
           docker stop test-container
