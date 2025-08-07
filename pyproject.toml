@@ -1,0 +1,10 @@
+[project]
+name = "gcp-python-uv"
+version = "0.1.0"
+description = "Serverless Python app on Google Cloud Run"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.1.1",
+    "gunicorn>=23.0.0",
+]
