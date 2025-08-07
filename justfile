@@ -68,13 +68,32 @@ update:
     docker run --rm -v $(pwd):/app -w /app {{python_image}} sh -c "pip install uv && uv lock --upgrade"
     echo "✅ Dependencies updated in uv.lock"
 
-# Clean up Docker images
+# Clean up local Docker images
 clean:
     #!/usr/bin/env bash
     set -euo pipefail
     docker image rm {{GCP_SERVICE_NAME}} {{image_tag}} 2>/dev/null || true
     docker image prune -f
-    echo "🧹 Docker images cleaned"
+    echo "🧹 Local Docker images cleaned"
+
+# Clean up old images from Artifact Registry
+clean-registry keep="5":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🧹 Cleaning old images from Artifact Registry (keeping {{keep}} most recent)..."
+    
+    images_to_delete=$(gcloud artifacts docker images list \
+        {{region}}-docker.pkg.dev/{{project_id}}/{{GCP_ARTIFACT_REGISTRY_REPO}}/{{GCP_SERVICE_NAME}} \
+        --sort-by=~create_time \
+        --format="value(package)" | \
+        tail -n +$(({{keep}} + 1)))
+    
+    if [ -z "$images_to_delete" ]; then
+        echo "ℹ️  No old images to delete (found less than {{keep}} images)"
+    else
+        echo "$images_to_delete" | xargs -I {} gcloud artifacts docker images delete {} --quiet
+        echo "✅ Registry cleaned"
+    fi
 
 # ==================== Deployment Commands ====================
 # Deploy to Google Cloud Run
