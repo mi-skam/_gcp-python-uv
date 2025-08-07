@@ -17,7 +17,7 @@ build:
 
 # Update dependencies with uv
 # Note: If you see VIRTUAL_ENV warnings, run: unset VIRTUAL_ENV
-install:
+update:
     uv sync --upgrade
 
 # Run development server with Docker
@@ -108,10 +108,9 @@ _setup-registry: _validate-env _check-auth
 deploy: _setup-registry _build-push
     echo "🚀 Deploying to Cloud Run..."
     gcloud run deploy {{service_name}} --image {{image_tag}} --platform managed --region {{region}} --allow-unauthenticated --project {{project_id}}
-    echo "✅ Deployment complete!"
 
 # Delete Cloud Run service to avoid costs
-delete:
+kill:
     #!/usr/bin/env bash
     set -euo pipefail
     
@@ -143,7 +142,7 @@ status:
         echo "🌐 URL: $(gcloud run services describe {{service_name}} --region={{region}} --format='value(status.url)')"
         echo "📊 Status: $(gcloud run services describe {{service_name}} --region={{region}} --format='value(status.conditions[0].status)')"
     else
-        echo "❌ Service not found"
+        echo "❌ Service not running"
         exit 1
     fi
 
