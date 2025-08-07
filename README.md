@@ -43,21 +43,6 @@ just kill
 ### Utilities
 - `just clean` - Clean up Docker images
 
-## Features
-
-- **Git-based versioning**: Images tagged with commit hash for better tracking
-- **Cost optimization**: Easy service deletion with `just kill`
-- **Environment validation**: Automatic checks for required tools and authentication
-- **Formatted logging**: Human-readable log output with timestamps
-- **Platform consistency**: Automatic AMD64 builds for Cloud Run compatibility
-
-## Cost Estimation
-
-For low usage (1-2 users, ~30 requests/month):
-- **Cloud Run**: ~$0.15-0.35/month per project
-- **Artifact Registry**: ~$0.10/month per project  
-- **Total**: ~$1.15-1.75/month for 3 active projects
-
 ## Troubleshooting
 
 ### "VIRTUAL_ENV warnings"

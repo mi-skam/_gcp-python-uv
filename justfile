@@ -131,7 +131,7 @@ _build-push:
 
 # View Cloud Run service logs
 logs:
-    gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name={{service_name}}" --limit=50 --project={{project_id}} --format=json | jq -r '.[] | "\(.timestamp)-\(.textPayload // .jsonPayload.message // "No message")"'
+    gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name={{service_name}}" --limit=50 --project={{project_id}} --format=json | jq -r 'reverse | .[] | "[\(.timestamp | sub("\\.[0-9]+Z$"; "Z") | strptime("%Y-%m-%dT%H:%M:%SZ") | strftime("%Y-%m-%d %H:%M"))] \(.textPayload // .jsonPayload.message // "No message")"'
 
 # Check service status
 status:
