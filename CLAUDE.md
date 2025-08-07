@@ -41,7 +41,7 @@ just clean            # Clean up Docker images
 All configuration is managed through environment variables in `.env`:
 - **GCP_PROJECT_ID**: Defaults to current gcloud project
 - **GCP_REGION**: Deployment region (europe-west3)
-- **SERVICE_NAME**: Cloud Run service name (gcp-python-uv)
+- **GCP_SERVICE_NAME**: Cloud Run service name (gcp-python-uv)
 - **PORT**: Application port (8080)
 - **DEV_LOCAL_PORT**: Local development port (8082)
 - **PYTHON_IMAGE**: Auto-derived from `.python-version`
