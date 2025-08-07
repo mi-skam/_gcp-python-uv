@@ -22,8 +22,8 @@
 # Set up environment variables for this session
 export GCP_PROJECT_ID="your-project-id"
 export GCP_REGION="europe-west3"
-export GCP_ARTIFACT_REGISTRY_REPO="docker-images"
-export GCP_SERVICE_NAME="gcp-python-uv"
+export ARTIFACT_REGISTRY_REPO="cloud-run-apps"
+export SERVICE_NAME="gcp-python-uv"
 export GITHUB_SERVICE_ACCOUNT_NAME="github-actions"
 export GITHUB_SA_KEY_FILE="github-actions-key.json"
 export SERVICE_ACCOUNT_EMAIL="${GITHUB_SERVICE_ACCOUNT_NAME}@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
@@ -33,7 +33,7 @@ export SERVICE_ACCOUNT_EMAIL="${GITHUB_SERVICE_ACCOUNT_NAME}@${GCP_PROJECT_ID}.i
 
 ### Create Artifact Registry Repository
 ```bash
-gcloud artifacts repositories create $GCP_ARTIFACT_REGISTRY_REPO \
+gcloud artifacts repositories create $ARTIFACT_REGISTRY_REPO \
   --repository-format=docker \
   --location=$GCP_REGION \
   --description="Docker images for CI/CD"
@@ -117,7 +117,7 @@ cat $GITHUB_SA_KEY_FILE
 ```bash
 # Delete old images (keep last 10 versions)
 gcloud artifacts docker images list \
-  --repository=$GCP_ARTIFACT_REGISTRY_REPO \
+  --repository=$ARTIFACT_REGISTRY_REPO \
   --location=$GCP_REGION \
   --limit=10 \
   --sort-by=~create_time \
@@ -128,7 +128,7 @@ gcloud artifacts docker images list \
 ## 6. Monitoring
 
 - **GitHub Actions**: View workflow runs in Actions tab
-- **Cloud Run Logs**: `gcloud run services logs read $GCP_SERVICE_NAME --region=$GCP_REGION`
+- **Cloud Run Logs**: `gcloud run services logs read $SERVICE_NAME --region=$GCP_REGION`
 - **Cloud Monitoring**: Set up alerts for service health
 
 ## Troubleshooting

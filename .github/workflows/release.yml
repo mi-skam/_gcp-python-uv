@@ -7,7 +7,7 @@ on:
 
 env:
   GCP_SERVICE_NAME: gcp-python-uv
-  GCP_ARTIFACT_REGISTRY_REPO: docker-images
+  GCP_ARTIFACT_REGISTRY_REPO: cloud-run-apps
 
 jobs:
   build-and-deploy:

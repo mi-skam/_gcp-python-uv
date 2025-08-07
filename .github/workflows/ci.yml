@@ -29,7 +29,12 @@ jobs:
         run: uv sync
 
       - name: Run tests
-        run: uv run python -m pytest tests/ -v || echo "No tests found - skipping"
+        run: |
+          if [ -d "tests" ]; then
+            uv run python -m pytest tests/ -v
+          else
+            echo "No tests directory found - skipping tests"
+          fi
 
       - name: Test Flask app starts
         run: |
