@@ -4,97 +4,158 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Flask application with uv dependency management designed for containerized deployment to Google Cloud Run. The project uses `just` for task automation and Docker for containerization.
+Flask application with uv dependency management designed for containerized deployment to Google Cloud Run. The project uses `just` for task automation, Docker Compose for development, and supports multiple Python versions through `.python-version`.
+
+## Environment Setup
+
+1. **Copy the environment template**: `cp .env.example .env`
+2. **Configure your settings** in `.env` (required for all commands)
+3. **Python version** is controlled by `.python-version` file (currently 3.12)
 
 ## Key Commands
 
 ### Development
 ```bash
-just install          # Install/update dependencies with uv
-just dev              # Run Docker container locally on port 8082
-just dev 8083         # Run on alternative port if 8082 is busy
-just build            # Build Docker image locally
+just dev [port]       # Start development server with Docker Compose watch mode (default: 8082)
+just test-prod [port] # Test production build locally
+just update           # Update dependencies using dockerized uv
 ```
 
-### Deployment
+### Build & Deploy
 ```bash
-just check-auth       # Verify gcloud authentication before deploying
-just deploy           # Deploy to Cloud Run with public access
-just deploy-secure    # Deploy with authentication required
-just teardown         # Delete Cloud Run service to avoid costs
+just build [platform] # Build Docker image (defaults to host platform)
+just deploy           # Deploy to Cloud Run (forces linux/amd64)
+just destroy          # Delete Cloud Run service to avoid costs
+just status           # Check deployment status
+just logs [limit]     # View Cloud Run logs (default: 50)
 ```
 
-### Debugging Deployments
+### Maintenance
 ```bash
-# Check Cloud Run logs if deployment fails
-gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=gcp-python-uv" --limit=20
-
-# Test locally with exact Docker setup
-docker build --platform linux/amd64 -t test . && docker run -p 8080:8080 -e PORT=8080 test
+just clean            # Clean up Docker images
 ```
 
 ## Architecture
 
-### Configuration Variables (justfile)
-- `project_id`: Dynamically reads from gcloud config
-- `region`: europe-west3 (hardcoded)
-- `artifact_registry_repo`: cloud-run-apps
-- `service_name`: gcp-python-uv
-- `port`: 8080
+### Configuration Management
+All configuration is managed through environment variables in `.env`:
+- **GCP_PROJECT_ID**: Defaults to current gcloud project
+- **GCP_REGION**: Deployment region (europe-west3)
+- **SERVICE_NAME**: Cloud Run service name (gcp-python-uv)
+- **PORT**: Application port (8080)
+- **DEV_LOCAL_PORT**: Local development port (8082)
+- **PYTHON_IMAGE**: Auto-derived from `.python-version`
 
-### Docker Build Considerations
-- **MUST use `--platform linux/amd64`** for Cloud Run deployments (prevents exec format errors)
-- Dockerfile uses multi-stage approach with uv for fast dependency installation
-- Runs as non-root user (appuser) for security
-- Uses gunicorn with environment variable PORT expansion via shell
+### Python Version Management
+- **Single source of truth**: `.python-version` file
+- **Automatic image derivation**: `python:X.Y-slim`
+- **Tested versions**: 3.9, 3.11, 3.12
+- **Change version**: `echo "3.13" > .python-version`
 
-### Flask Application Structure
-- `main.py`: Single file Flask app with three endpoints
+### Docker Build Strategy
+- **Platform flexibility**: 
+  - `just build` - Uses host platform (fast local builds)
+  - `just build linux/amd64` - For x86_64 servers
+  - `just deploy` - Always uses linux/amd64 for Cloud Run
+- **Multi-stage builds** with uv for fast dependency installation
+- **Security**: Runs as non-root user (appuser)
+
+### Development Workflow
+- **Docker Compose with watch mode**: Auto-syncs file changes
+- **No local dependencies**: Everything runs in containers
+- **Dockerized uv**: No need for local uv installation
+
+### Flask Application
+- `main.py`: Simple Flask app with three endpoints
   - `/` - Returns JSON with timestamp and Python version
   - `/health` - Health check endpoint
   - `/echo/<text>` - Echo service for testing
-- Reads PORT from environment variable (defaults to 8080)
-- Binds to 0.0.0.0 for container compatibility
-
-### Dependency Management
-- Uses `uv` for fast Python dependency management
-- Dependencies locked in `uv.lock`
-- Python 3.12+ required
-- Core dependencies: Flask and Gunicorn
+- Configurable via environment variables
+- Production-ready with Gunicorn
 
 ## Common Issues and Solutions
 
+### Missing Environment Variables
+```bash
+error: environment variable `VARIABLE_NAME` not present
+```
+**Solution**: Ensure `.env` file exists with all required variables
+
 ### Platform Architecture Mismatch
-If Cloud Run shows "exec format error", ensure Docker builds with `--platform linux/amd64`. The justfile already handles this.
+```
+exec format error on Cloud Run
+```
+**Solution**: Deploy command automatically uses `--platform linux/amd64`
 
-### Authentication Failures
-The `deploy` command runs `check-auth` first to verify:
-1. Active gcloud authentication
-2. Project has billing enabled
-3. Correct project is selected
+### Port Already in Use
+```bash
+just dev 8083  # Use alternative port
+```
 
-### Port Binding Issues
-- Local development uses port mapping (8082:8080 by default)
-- Cloud Run requires PORT environment variable
-- Gunicorn command uses shell expansion for $PORT
+### Authentication Issues
+```bash
+gcloud auth login           # Authenticate with Google Cloud
+gcloud config set project PROJECT_ID  # Set default project
+```
 
-### Artifact Registry Setup
-The justfile automatically:
-1. Creates the repository if it doesn't exist
-2. Configures Docker authentication
-3. Uses consistent naming: `{{region}}-docker.pkg.dev/{{project_id}}/{{artifact_registry_repo}}/{{service_name}}`
+## Testing Python Version Changes
 
-## Testing Changes
+1. **Change Python version**:
+   ```bash
+   echo "3.11" > .python-version
+   ```
 
-When modifying the application:
-1. Test locally first: `just dev`
-2. Verify Docker build: `just build`
-3. Check authentication: `just check-auth`
-4. Deploy to test: `just deploy`
-5. Clean up after testing: `just teardown`
+2. **Build and test locally**:
+   ```bash
+   just build
+   just test-prod
+   ```
+
+3. **Deploy to Cloud Run**:
+   ```bash
+   just deploy
+   ```
+
+4. **Verify deployment**:
+   ```bash
+   just status
+   curl $(just status | grep URL | cut -d' ' -f3)
+   ```
+
+## Best Practices
+
+1. **Always use `.env`**: No hardcoded defaults in justfile
+2. **Test locally first**: Use `just dev` for development
+3. **Clean up resources**: Run `just destroy` when done testing
+4. **Monitor costs**: Cloud Run charges for running services
+5. **Version control**: `.env` is gitignored, `.env.example` is tracked
 
 ## Security Notes
-- `.dockerignore` excludes sensitive files from Docker context
-- `deploy-secure` option available for authenticated-only access
-- Non-root container user (appuser)
-- No secrets in code - uses environment variables
+
+- `.env` file is gitignored (never commit secrets)
+- Docker containers run as non-root user
+- Cloud Run deployments use `--allow-unauthenticated` by default
+- All secrets should be environment variables
+
+## Project Structure
+
+```
+.
+├── .env.example        # Environment template (tracked)
+├── .env               # Local configuration (gitignored)
+├── .python-version    # Python version specification
+├── compose.yml        # Docker Compose configuration
+├── Dockerfile         # Multi-stage build with uv
+├── justfile          # Task automation
+├── main.py           # Flask application
+├── pyproject.toml    # Python dependencies
+└── uv.lock          # Locked dependencies
+```
+
+## Design Patterns Used
+
+- **Template Method**: Private recipes in justfile (`_validate-deployment`)
+- **Factory Pattern**: `_build-and-push` creates standardized images
+- **Singleton Pattern**: `_setup-registry` ensures single repository
+- **Configuration as Code**: All settings in `.env`
+- **Single Source of Truth**: `.python-version` for Python version
