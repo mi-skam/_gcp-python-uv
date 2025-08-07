@@ -9,6 +9,8 @@ services:
     environment:
       - PORT=${PORT:-8080}
       - FLASK_DEBUG=${FLASK_DEBUG:-true}
+      - FLASK_ENV=development
+    command: ["python", "main.py"]
     develop:
       watch:
         - action: sync
@@ -18,3 +20,5 @@ services:
             - .venv/
         - action: rebuild
           path: ./uv.lock
+        - action: rebuild
+          path: ./pyproject.toml
