@@ -4,6 +4,8 @@ region := "europe-west3"
 artifact_registry_repo := "cloud-run-apps"
 service_name := "gcp-python-uv"
 port := "8080"
+git_hash := `git rev-parse --short HEAD`
+image_tag := region + "-docker.pkg.dev/" + project_id + "/" + artifact_registry_repo + "/" + service_name + ":" + git_hash
 
 # Default target
 default:
@@ -11,9 +13,10 @@ default:
 
 # Build the Docker image
 build:
-    docker build -t {{service_name}} .
+    docker build --platform linux/amd64 -t {{service_name}} -t {{image_tag}} .
 
 # Update dependencies with uv
+# Note: If you see VIRTUAL_ENV warnings, run: unset VIRTUAL_ENV
 install:
     uv sync --upgrade
 
@@ -34,8 +37,30 @@ dev local_port="8082":
     # Run the container
     docker run -p {{local_port}}:{{port}} -e PORT={{port}} --rm {{service_name}}
 
+# Validate required environment variables
+_validate-env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    if [[ -z "{{project_id}}" || "{{project_id}}" == "(unset)" ]]; then
+        echo "❌ No GCP project set. Run: gcloud config set project YOUR_PROJECT_ID"
+        exit 1
+    fi
+    
+    if ! command -v gcloud &> /dev/null; then
+        echo "❌ gcloud CLI not found. Install Google Cloud SDK"
+        exit 1
+    fi
+    
+    if ! command -v docker &> /dev/null; then
+        echo "❌ Docker not found. Install Docker"
+        exit 1
+    fi
+    
+    echo "✅ Environment validation passed"
+
 # Check if authenticated with gcloud
-check-auth:
+_check-auth: _validate-env
     #!/usr/bin/env bash
     set -euo pipefail
     
@@ -54,7 +79,7 @@ check-auth:
     fi
 
 # Setup Artifact Registry repository
-setup-registry: check-auth
+_setup-registry: _validate-env _check-auth
     #!/usr/bin/env bash
     set -euo pipefail
     
@@ -80,52 +105,13 @@ setup-registry: check-auth
     echo "✅ Docker authentication configured"
 
 # Deploy to Google Cloud Run (public access)
-deploy: setup-registry
-    #!/usr/bin/env bash
-    set -euo pipefail
-    
-    echo "🔨 Building Docker image for Cloud Run (AMD64)..."
-    docker build --platform linux/amd64 -t {{region}}-docker.pkg.dev/{{project_id}}/{{artifact_registry_repo}}/{{service_name}}:latest .
-    
-    echo "📤 Pushing to Artifact Registry..."
-    docker push {{region}}-docker.pkg.dev/{{project_id}}/{{artifact_registry_repo}}/{{service_name}}:latest
-    
+deploy: _setup-registry _build-push
     echo "🚀 Deploying to Cloud Run..."
-    gcloud run deploy {{service_name}} \
-        --image {{region}}-docker.pkg.dev/{{project_id}}/{{artifact_registry_repo}}/{{service_name}}:latest \
-        --platform managed \
-        --region {{region}} \
-        --allow-unauthenticated \
-        --project {{project_id}}
-    
+    gcloud run deploy {{service_name}} --image {{image_tag}} --platform managed --region {{region}} --allow-unauthenticated --project {{project_id}}
     echo "✅ Deployment complete!"
-    echo "🌐 Service URL: $(gcloud run services describe {{service_name}} --region={{region}} --format='value(status.url)')"
-
-# Deploy to Google Cloud Run (authenticated access only)
-deploy-secure: setup-registry
-    #!/usr/bin/env bash
-    set -euo pipefail
-    
-    echo "🔨 Building Docker image for Cloud Run (AMD64)..."
-    docker build --platform linux/amd64 -t {{region}}-docker.pkg.dev/{{project_id}}/{{artifact_registry_repo}}/{{service_name}}:latest .
-    
-    echo "📤 Pushing to Artifact Registry..."
-    docker push {{region}}-docker.pkg.dev/{{project_id}}/{{artifact_registry_repo}}/{{service_name}}:latest
-    
-    echo "🚀 Deploying to Cloud Run (secure mode)..."
-    gcloud run deploy {{service_name}} \
-        --image {{region}}-docker.pkg.dev/{{project_id}}/{{artifact_registry_repo}}/{{service_name}}:latest \
-        --platform managed \
-        --region {{region}} \
-        --no-allow-unauthenticated \
-        --project {{project_id}}
-    
-    echo "✅ Deployment complete (authenticated access only)!"
-    echo "🔒 Service URL: $(gcloud run services describe {{service_name}} --region={{region}} --format='value(status.url)')"
-    echo "ℹ️  To access: gcloud run services proxy {{service_name}} --region={{region}}"
 
 # Delete Cloud Run service to avoid costs
-teardown:
+delete:
     #!/usr/bin/env bash
     set -euo pipefail
     
@@ -137,7 +123,33 @@ teardown:
         echo "ℹ️  Service not found (may already be deleted)"
     fi
 
+# Build and push Docker image (shared recipe)
+_build-push:
+    echo "🔨 Building Docker image for Cloud Run (AMD64)..."
+    docker build --platform linux/amd64 -t {{image_tag}} .
+    echo "📤 Pushing to Artifact Registry..."
+    docker push {{image_tag}}
+
+# View Cloud Run service logs
+logs:
+    gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name={{service_name}}" --limit=50 --project={{project_id}} --format=json | jq -r '.[] | "\(.timestamp)-\(.textPayload // .jsonPayload.message // "No message")"'
+
+# Check service status
+status:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if gcloud run services describe {{service_name}} --region={{region}} --project={{project_id}} &>/dev/null; then
+        echo "✅ Service is deployed"
+        echo "🌐 URL: $(gcloud run services describe {{service_name}} --region={{region}} --format='value(status.url)')"
+        echo "📊 Status: $(gcloud run services describe {{service_name}} --region={{region}} --format='value(status.conditions[0].status)')"
+    else
+        echo "❌ Service not found"
+        exit 1
+    fi
+
 # Clean up Docker images
 clean:
-    docker image rm {{service_name}} || true
+    #!/usr/bin/env bash
+    set -euo pipefail
+    docker image rm {{service_name}} {{image_tag}} || true
     docker image prune -f
