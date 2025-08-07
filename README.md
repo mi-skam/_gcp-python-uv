@@ -1,5 +1,8 @@
 # gcp-python-uv
 
+[![CI](https://github.com/mi-skam/_gcp-python-uv/actions/workflows/ci.yml/badge.svg)](https://github.com/mi-skam/_gcp-python-uv/actions/workflows/ci.yml)
+[![Release and Deploy](https://github.com/mi-skam/_gcp-python-uv/actions/workflows/release.yml/badge.svg)](https://github.com/mi-skam/_gcp-python-uv/actions/workflows/release.yml)
+
 Flask application template for Google Cloud Run deployment using Docker, uv package management, and just for task automation.
 
 ## Prerequisites
