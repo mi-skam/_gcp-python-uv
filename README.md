@@ -5,61 +5,53 @@
 
 Flask application template for Google Cloud Run deployment using Docker, uv package management, and just for task automation.
 
+**🚀 Zero Configuration Required** - Clone and run `just dev` to get started immediately!
+
 ## Prerequisites
 
 - Docker
 - [just](https://github.com/casey/just)
-- [gcloud CLI](https://cloud.google.com/sdk/docs/install) - For Cloud Run deployment
-- [jq](https://jqlang.github.io/jq/) - For log formatting (optional)
+
+**For Cloud Run deployment (optional):**
+- [gcloud CLI](https://cloud.google.com/sdk/docs/install)
+- [jq](https://jqlang.github.io/jq/) - For log formatting
 
 Note: No local Python or uv installation required.
 
 ## Quick Start
 
-### 1. Clone and Configure
+### 1. Start Development (Zero Configuration)
 
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd gcp-python-uv
 
-# Set up environment
-cp .env.example .env
-# Edit .env with your settings (all fields required)
-```
-
-### 2. Local Development
-
-```bash
-# Start development server (http://localhost:8082)
+# Start development server immediately (http://localhost:8082)
 just dev
-
-# Or use a different port
-just dev 3000
 ```
 
-### 3. Deploy to Cloud Run
+**That's it!** The project uses sensible defaults and requires no configuration for local development.
+
+### 2. Deploy to Cloud Run (Optional)
 
 ```bash
-# Authenticate with Google Cloud
+# One-time setup: authenticate and set project
 gcloud auth login
 gcloud config set project YOUR_PROJECT_ID
 
-# Deploy
+# Deploy with zero configuration
 just deploy
 
 # Check deployment
 just status
 ```
 
-### 4. Clean Up
+### 3. Clean Up
 
 ```bash
 # Remove Cloud Run service (stop billing)
 just destroy
-
-# Clean local Docker images
-just clean
 ```
 
 ## Available Commands
@@ -81,27 +73,17 @@ just clean
 | `just logs [limit]` | View service logs (default: 50) |
 | `just clean` | Remove local Docker images |
 
-## Configuration
+## Configuration (Optional)
 
-### Environment Variables
+The project works with zero configuration using these defaults:
 
-All configuration is managed through the `.env` file:
+- **Region**: `europe-west3`
+- **Service Name**: `gcp-python-uv`
+- **Ports**: `8080` (production), `8082` (development)
+- **Registry**: `cloud-run-apps`
+- **Project**: Uses your current `gcloud` project
 
-```bash
-# Google Cloud Configuration
-GCP_PROJECT_ID=your-project-id       # Required (or use gcloud default)
-GCP_REGION=europe-west3              # Required
-GCP_ARTIFACT_REGISTRY_REPO=cloud-run-apps # Required
-GCP_SERVICE_NAME=gcp-python-uv           # Required
-
-# Application Configuration
-PORT=8080                            # Required
-DEV_LOCAL_PORT=8082                  # Required
-FLASK_DEBUG=true                     # For development
-
-# Docker Configuration (optional)
-# PYTHON_IMAGE=python:3.12-slim      # Auto-derived from .python-version
-```
+**To customize**: Copy `.env.example` to `.env` and modify any values.
 
 ### Python Version Management
 

@@ -4,21 +4,21 @@
 # Load environment variables from .env file if it exists
 set dotenv-load := true
 
-# Core configuration (from .env or environment)
+# Core configuration (from .env or environment with sensible defaults)
 project_id := env_var_or_default("GCP_PROJECT_ID", `gcloud config get-value project`)
-region := env_var("GCP_REGION")
-GCP_SERVICE_NAME := env_var("GCP_SERVICE_NAME")
+region := env_var_or_default("GCP_REGION", "europe-west3")
+GCP_SERVICE_NAME := env_var_or_default("GCP_SERVICE_NAME", "gcp-python-uv")
 
 # Python configuration (single source of truth: .python-version)
 python_version := `cat .python-version | tr -d '\n'`
 python_image := env_var_or_default("PYTHON_IMAGE", "python:" + python_version + "-slim")
 
 # Port configuration
-port := env_var("PORT")
-dev_local_port := env_var("DEV_LOCAL_PORT")
+port := env_var_or_default("PORT", "8080")
+dev_local_port := env_var_or_default("DEV_LOCAL_PORT", "8082")
 
 # Artifact Registry configuration
-GCP_ARTIFACT_REGISTRY_REPO := env_var("GCP_ARTIFACT_REGISTRY_REPO")
+GCP_ARTIFACT_REGISTRY_REPO := env_var_or_default("GCP_ARTIFACT_REGISTRY_REPO", "cloud-run-apps")
 git_hash := `git rev-parse --short HEAD`
 image_tag := region + "-docker.pkg.dev/" + project_id + "/" + GCP_ARTIFACT_REGISTRY_REPO + "/" + GCP_SERVICE_NAME + ":" + git_hash
 
